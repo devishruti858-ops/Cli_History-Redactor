@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="cobalt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLI History Sanitizer - R&D Dashboard & Review Deck</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        theme: {
+                            bg: 'var(--bg-main)',
+                            surface: 'var(--bg-surface)',
+                            border: 'var(--border-color)',
+                            text: 'var(--text-main)',
+                            muted: 'var(--text-muted)',
+                            primary: 'var(--primary-color)',
+                            accent: 'var(--accent-color)',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root[data-theme="cobalt"] { --bg-main: #0b1329; --bg-surface: #14213d; --border-color: #233559; --text-main: #f8fafc; --text-muted: #94a3b8; --primary-color: #2563eb; --accent-color: #38bdf8; }
+        :root[data-theme="light-slate"] { --bg-main: #f1f5f9; --bg-surface: #ffffff; --border-color: #cbd5e1; --text-main: #0f172a; --text-muted: #64748b; --primary-color: #2563eb; --accent-color: #0284c7; }
+        :root[data-theme="cyberpunk"] { --bg-main: #0d0221; --bg-surface: #190535; --border-color: #ff007f; --text-main: #00f5d4; --text-muted: #b5179e; --primary-color: #ff007f; --accent-color: #7b2cbf; }
+        :root[data-theme="nord"] { --bg-main: #2e3440; --bg-surface: #3b4252; --border-color: #4c566a; --text-main: #eceff4; --text-muted: #d8dee9; --primary-color: #88c0d0; --accent-color: #81a1c1; }
+        :root[data-theme="dracula"] { --bg-main: #282a36; --bg-surface: #383a4c; --border-color: #6272a4; --text-main: #f8f8f2; --text-muted: #bd93f9; --primary-color: #ff79c6; --accent-color: #50fa7b; }
+        :root[data-theme="monokai"] { --bg-main: #1e1f1c; --bg-surface: #272822; --border-color: #49483e; --text-main: #f8f8f2; --text-muted: #a6e22e; --primary-color: #f92672; --accent-color: #66d9ef; }
+        :root[data-theme="solarized-dark"] { --bg-main: #002b36; --bg-surface: #073642; --border-color: #586e75; --text-main: #839496; --text-muted: #93a1a1; --primary-color: #268bd2; --accent-color: #2aa198; }
+        :root[data-theme="solarized-light"] { --bg-main: #fdf6e3; --bg-surface: #eee8d5; --border-color: #93a1a1; --text-main: #657b83; --text-muted: #586e75; --primary-color: #268bd2; --accent-color: #d33682; }
+        :root[data-theme="emerald"] { --bg-main: #022c22; --bg-surface: #064e3b; --border-color: #047857; --text-main: #ecfdf5; --text-muted: #a7f3d0; --primary-color: #10b981; --accent-color: #34d399; }
+        :root[data-theme="synthwave"] { --bg-main: #12092b; --bg-surface: #201343; --border-color: #ff71ce; --text-main: #01cdfe; --text-muted: #05ffa1; --primary-color: #ff71ce; --accent-color: #b967ff; }
+        :root[data-theme="tokyo-night"] { --bg-main: #16161e; --bg-surface: #1a1b26; --border-color: #292e42; --text-main: #c0caf5; --text-muted: #7aa2f7; --primary-color: #bb9af7; --accent-color: #7dcfff; }
+        :root[data-theme="paper"] { --bg-main: #f5f5f0; --bg-surface: #ffffff; --border-color: #222222; --text-main: #111111; --text-muted: #555555; --primary-color: #000000; --accent-color: #444444; }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+
+        .border-theme { border-color: var(--border-color); }
+        .bg-surface { background-color: var(--bg-surface); }
+
+        /* Custom scrollbar for modern UI */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+
+        /* Security Token Highlight Badges */
+        .hl-critical { background-color: rgba(239, 68, 68, 0.22); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; font-weight: 600; padding: 1px 4px; border-radius: 4px; }
+        .hl-high { background-color: rgba(249, 115, 22, 0.22); border: 1px solid rgba(249, 115, 22, 0.5); color: #fdba74; font-weight: 600; padding: 1px 4px; border-radius: 4px; }
+        .hl-medium { background-color: rgba(234, 179, 8, 0.22); border: 1px solid rgba(234, 179, 8, 0.5); color: #fef08a; font-weight: 600; padding: 1px 4px; border-radius: 4px; }
+        .hl-low { background-color: rgba(59, 130, 246, 0.22); border: 1px solid rgba(59, 130, 246, 0.5); color: #93c5fd; font-weight: 600; padding: 1px 4px; border-radius: 4px; }
+
+        /* Glassmorphism subtle backdrop */
+        .glass-panel {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-blue-500/30 selection:text-blue-200">
+
+    <header class="bg-surface/90 border-b border-theme sticky top-0 z-30 glass-panel shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3.5">
+                <div class="p-2.5 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-500 text-white shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-shield-halved text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight flex items-center gap-2.5">
+                        CLI History Sanitizer
+                        <span class="text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Client-Side Engine Active
+                        </span>
+                    </h1>
+                    <p class="text-xs text-theme-muted">Scan, redact, and report passwords, API tokens & SSH keys in shell histories</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <div class="flex bg-theme-bg/80 border border-theme rounded-xl p-1 text-xs shadow-inner">
+                    <button id="tabBtnDashboard" onclick="switchMainTab('dashboard')" class="px-3.5 py-1.5 rounded-lg font-semibold transition-all duration-200 bg-blue-600 text-white shadow">
+                        <i class="fa-solid fa-gauge-high mr-1.5"></i> R&D Dashboard
+                    </button>
+                    <button id="tabBtnDeck" onclick="switchMainTab('deck')" class="px-3.5 py-1.5 rounded-lg font-semibold transition-all duration-200 text-theme-muted hover:text-theme-text">
+                        <i class="fa-solid fa-presentation-screen mr-1.5"></i> 15-Slide Review Deck
+                    </button>
+                </div>
+
+                <!-- Theme Switcher -->
+                <div class="flex items-center space-x-2 bg-theme-bg/60 border border-theme rounded-xl px-2.5 py-1 text-xs">
+                    <i class="fa-solid fa-palette text-theme-muted"></i>
+                    <select id="themeSelector" onchange="changeTheme(this.value)" class="bg-transparent border-none text-xs font-medium text-theme-text focus:outline-none cursor-pointer pr-1">
+                        <option value="cobalt">Cobalt Dark</option>
+                        <option value="light-slate">Light Slate</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                        <option value="nord">Nord</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="monokai">Monokai</option>
+                        <option value="solarized-dark">Solarized Dark</option>
+                        <option value="solarized-light">Solarized Light</option>
+                        <option value="emerald">Emerald</option>
+                        <option value="synthwave">Synthwave</option>
+                        <option value="tokyo-night">Tokyo Night</option>
+                        <option value="paper">Paper (Contrast)</option>
+                        <option value="custom">Custom Theme...</option>
+                    </select>
+                    <button onclick="openCustomThemeModal()" id="customThemeBtn" class="hidden px-2 py-1 bg-blue-600 text-white rounded-md text-xs hover:bg-blue-700 transition" title="Customize Palette">
+                        <i class="fa-solid fa-sliders"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main id="viewDashboard" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- KPI Metrics Grid -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="bg-surface border border-theme rounded-2xl p-4 shadow-sm hover:border-blue-500/40 transition relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-blue-500/30 group-hover:bg-blue-500 transition"></div>
+                <div class="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">Commands Scanned</div>
+                <div class="mt-2 text-2xl font-bold font-mono tracking-tight" id="metricLinesScanned">0</div>
+                <div class="text-[11px] text-theme-muted mt-1 flex items-center gap-1">
+                    <i class="fa-solid fa-terminal text-[10px]"></i> Total shell entries
+                </div>
+            </div>
+            <div class="bg-surface border border-theme rounded-2xl p-4 shadow-sm hover:border-red-500/40 transition relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-red-500/30 group-hover:bg-red-500 transition"></div>
+                <div class="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">Secrets Detected</div>
+                <div class="mt-2 text-2xl font-bold font-mono text-red-400 tracking-tight" id="metricSecretsFound">0</div>
+                <div class="text-[11px] text-theme-muted mt-1" id="metricHitsSubtitle">0 rule hits</div>
+            </div>
+            <div class="bg-surface border border-theme rounded-2xl p-4 shadow-sm hover:border-amber-500/40 transition relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-amber-500/30 group-hover:bg-amber-500 transition"></div>
+                <div class="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">Critical & High</div>
+                <div class="mt-2 text-2xl font-bold font-mono text-amber-400 tracking-tight" id="metricCritHigh">0</div>
+                <div class="text-[11px] text-theme-muted mt-1">High-priority risk targets</div>
+            </div>
+            <div class="bg-surface border border-theme rounded-2xl p-4 shadow-sm hover:border-sky-500/40 transition relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-sky-500/30 group-hover:bg-sky-500 transition"></div>
+                <div class="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">Lines Affected</div>
+                <div class="mt-2 text-2xl font-bold font-mono text-sky-400 tracking-tight" id="metricLinesAffected">0</div>
+                <div class="text-[11px] text-theme-muted mt-1">Sanitization targets</div>
+            </div>
+            <div class="bg-surface border border-theme rounded-2xl p-4 shadow-sm hover:border-emerald-500/40 transition relative overflow-hidden group">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500/30 group-hover:bg-emerald-400 transition"></div>
+                <div class="text-[11px] font-semibold text-theme-muted uppercase tracking-wider">% Clean History</div>
+                <div class="mt-2 text-2xl font-bold font-mono text-emerald-400 tracking-tight" id="metricCleanPct">100%</div>
+                <div class="text-[11px] text-theme-muted mt-1">Uncompromised commands</div>
+            </div>
+        </section>
+
+        <section class="bg-surface border border-theme rounded-2xl p-4.5 shadow-sm space-y-2.5">
+            <div class="flex justify-between items-center text-xs font-semibold text-theme-muted">
+                <span class="flex items-center gap-1.5 uppercase tracking-wider text-[11px]"><i class="fa-solid fa-chart-pie"></i> Severity Ratio Breakdown</span>
+                <span id="severityRatioText" class="font-mono">0 Critical, 0 High, 0 Medium, 0 Low</span>
+            </div>
+            <div class="w-full bg-slate-950/40 rounded-full h-3.5 flex overflow-hidden border border-theme p-0.5">
+                <div id="barCritical" class="bg-red-500 h-full rounded-l-full transition-all duration-300" style="width: 0%" title="Critical"></div>
+                <div id="barHigh" class="bg-orange-500 h-full transition-all duration-300" style="width: 0%" title="High"></div>
+                <div id="barMedium" class="bg-yellow-500 h-full transition-all duration-300" style="width: 0%" title="Medium"></div>
+                <div id="barLow" class="bg-blue-500 h-full rounded-r-full transition-all duration-300" style="width: 0%" title="Low"></div>
+            </div>
+        </section>
+
+        <section class="bg-surface border border-theme rounded-2xl p-5 shadow-sm space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-400"></i> Detection Engine Controls
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-xs">
+                <div class="space-y-1.5">
+                    <label class="font-semibold text-theme-text block">Redaction Style</label>
+                    <select id="redactStyle" onchange="updateOptionsAndRun()" class="w-full bg-theme-bg border border-theme rounded-xl px-3 py-2 text-xs font-mono text-theme-text focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                        <option value="placeholder">Placeholder ([REDACTED:TAG])</option>
+                        <option value="mask">Mask (********)</option>
+                        <option value="partial">Partial (hunt****)</option>
+                        <option value="hash">Deterministic Hash ([TAG:52562501])</option>
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="font-semibold text-theme-text block">Sanitization Options</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2.5 cursor-pointer">
+                            <input type="checkbox" id="stripTimestamps" onchange="updateOptionsAndRun()" class="rounded border-theme bg-theme-bg text-blue-600 focus:ring-blue-500 h-4 w-4">
+                            <span class="text-xs">Strip zsh timestamps (<code class="text-[10px] bg-slate-800 px-1 rounded font-mono">: 1727...:0;</code>)</span>
+                        </label>
+                        <label class="flex items-center space-x-2.5 cursor-pointer">
+                            <input type="checkbox" id="dropCritical" onchange="updateOptionsAndRun()" class="rounded border-theme bg-theme-bg text-red-600 focus:ring-red-500 h-4 w-4">
+                            <span class="text-xs text-red-400 font-medium">Drop Critical Lines Completely</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5 lg:col-span-2 bg-theme-bg/60 p-3.5 rounded-xl border border-theme">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center space-x-2 cursor-pointer font-semibold">
+                            <input type="checkbox" id="entropyEnabled" checked onchange="updateOptionsAndRun()" class="rounded border-theme bg-theme-bg text-blue-600 focus:ring-blue-500 h-4 w-4">
+                            <span>Shannon Entropy Detection Engine</span>
+                        </label>
+                        <span class="text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">H = −Σ p(c) log₂ p(c)</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                            <div class="flex justify-between text-[11px] text-theme-muted mb-1 font-mono">
+                                <span>Entropy Threshold:</span>
+                                <span id="entropyThreshVal" class="font-bold text-blue-400">4.3 bits</span>
+                            </div>
+                            <input type="range" id="entropyThresh" min="3.5" max="5.5" step="0.1" value="4.3" oninput="document.getElementById('entropyThreshVal').innerText = parseFloat(this.value).toFixed(1) + ' bits'; updateOptionsAndRun();" class="w-full accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-[11px] text-theme-muted mb-1 font-mono">
+                                <span>Min Token Length:</span>
+                                <span id="entropyMinLenVal" class="font-bold text-blue-400">20 chars</span>
+                            </div>
+                            <input type="range" id="entropyMinLen" min="10" max="40" step="1" value="20" oninput="document.getElementById('entropyMinLenVal').innerText = this.value + ' chars'; updateOptionsAndRun();" class="w-full accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Raw History Input -->
+            <div class="bg-surface border border-theme rounded-2xl p-4.5 shadow-sm flex flex-col space-y-3">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-blue-400"></i> Raw Shell History Input
+                    </h2>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="loadSampleHistory()" class="px-2.5 py-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg font-medium hover:bg-blue-600/30 transition">
+                            Load 31-Line Sample
+                        </button>
+                        <button onclick="clearInput()" class="px-2.5 py-1 text-xs bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg font-medium hover:bg-red-600/30 transition">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <textarea id="rawInput" oninput="processHistory()" placeholder="Paste shell history content here..." class="w-full h-[420px] bg-theme-bg border border-theme rounded-xl p-3.5 font-mono text-xs text-theme-text focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none leading-relaxed transition"></textarea>
+            </div>
+
+            <!-- Sanitized Output View -->
+            <div class="bg-surface border border-theme rounded-2xl p-4.5 shadow-sm flex flex-col space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                        <i class="fa-solid fa-file-shield text-emerald-400"></i> Output Preview
+                    </h2>
+
+                    <div class="flex items-center space-x-2">
+                        <div class="flex bg-theme-bg border border-theme rounded-lg p-0.5 text-xs">
+                            <button id="btnViewSanitized" onclick="setViewMode('sanitized')" class="px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition">Sanitized</button>
+                            <button id="btnViewAnnotated" onclick="setViewMode('annotated')" class="px-2.5 py-1 rounded-md font-semibold text-theme-muted hover:text-theme-text transition">Annotated</button>
+                        </div>
+                        <button onclick="copySanitized()" class="px-2.5 py-1 text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg font-semibold hover:bg-emerald-600/30 transition">
+                            <i class="fa-regular fa-copy mr-1"></i> Copy
+                        </button>
+                        <button onclick="downloadSanitized()" class="px-2.5 py-1 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg font-semibold hover:bg-blue-600/30 transition">
+                            <i class="fa-solid fa-download mr-1"></i> TXT
+                        </button>
+                        <button onclick="downloadReportJSON()" class="px-2.5 py-1 text-xs bg-purple-600/20 text-purple-400 border border-purple-500/30 rounded-lg font-semibold hover:bg-purple-600/30 transition">
+                            <i class="fa-solid fa-file-code mr-1"></i> Report
+                        </button>
+                    </div>
+                </div>
+
+                <div id="sanitizedViewContainer" class="w-full h-[420px] bg-theme-bg border border-theme rounded-xl p-3.5 font-mono text-xs overflow-auto leading-relaxed">
+                    <pre id="sanitizedText" class="whitespace-pre-wrap break-all"></pre>
+                    <div id="annotatedText" class="whitespace-pre-wrap break-all hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-surface border border-theme rounded-2xl p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-400"></i> Findings Audit Log
+                </h2>
+                <div class="flex items-center space-x-3">
+                    <input type="text" id="findingSearch" oninput="renderFindingsTable()" placeholder="Search tag or rule..." class="bg-theme-bg border border-theme rounded-xl px-3 py-1.5 text-xs text-theme-text focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <select id="findingSevFilter" onchange="renderFindingsTable()" class="bg-theme-bg border border-theme rounded-xl px-2.5 py-1.5 text-xs text-theme-text focus:outline-none">
+                        <option value="ALL">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-theme">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-theme-bg/80 border-b border-theme text-theme-muted font-semibold uppercase tracking-wider">
+                            <th class="p-3">Line</th>
+                            <th class="p-3">Severity</th>
+                            <th class="p-3">Tag</th>
+                            <th class="p-3">Detected By</th>
+                            <th class="p-3">Masked Preview</th>
+                            <th class="p-3">Len</th>
+                            <th class="p-3">Entropy</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="findingsTableBody" class="divide-y divide-theme/60 font-mono"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-surface border border-theme rounded-2xl p-5 shadow-sm space-y-4">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                <i class="fa-solid fa-chart-bar text-sky-400"></i> Rule Hits Breakdown
+            </h2>
+            <div id="hitsByRuleBars" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </section>
+
+        <section class="bg-surface border border-theme rounded-2xl p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-theme-muted flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-purple-400"></i> Rules & Allowlist Configuration
+                </h2>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openAddRuleModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow transition">
+                        <i class="fa-solid fa-plus mr-1"></i> Add Rule
+                    </button>
+                    <button onclick="confirmResetRules()" class="px-3 py-1.5 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-semibold hover:bg-red-600/30 transition">
+                        Reset Rules
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-theme max-h-[360px]">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="sticky top-0 bg-theme-bg z-10">
+                        <tr class="border-b border-theme text-theme-muted font-semibold uppercase tracking-wider">
+                            <th class="p-3">Active</th>
+                            <th class="p-3">Rule Name</th>
+                            <th class="p-3">Tag</th>
+                            <th class="p-3">Severity</th>
+                            <th class="p-3">Regex Pattern</th>
+                            <th class="p-3">Grp</th>
+                            <th class="p-3">Hits</th>
+                            <th class="p-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rulesTableBody" class="divide-y divide-theme/60"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <main id="viewDeck" class="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden flex-col space-y-6">
+        
+        <!-- Slide Controls Bar -->
+        <div class="flex items-center justify-between bg-surface border border-theme rounded-2xl p-4 shadow-sm">
+            <div class="flex items-center space-x-2">
+                <button onclick="prevSlide()" class="px-3.5 py-1.5 bg-theme-bg border border-theme hover:bg-slate-700/50 rounded-xl text-xs font-semibold transition">
+                    <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                </button>
+                <button onclick="nextSlide()" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition shadow">
+                    Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                </button>
+            </div>
+
+            <div class="text-xs font-bold font-mono">
+                Slide <span id="currentSlideNum" class="text-blue-400 font-extrabold text-sm">1</span> / 15
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <select id="slideSelect" onchange="goToSlide(parseInt(this.value))" class="bg-theme-bg border border-theme rounded-xl px-3 py-1.5 text-xs text-theme-text focus:outline-none cursor-pointer">
+                    <option value="1">1. Cover & Overview</option>
+                    <option value="2">2. The Problem</option>
+                    <option value="3">3. Purpose & Core Goals</option>
+                    <option value="4">4. Pipeline Architecture</option>
+                    <option value="5">5. Rules & Capture Groups</option>
+                    <option value="6">6. 3-Pass Detection Engine</option>
+                    <option value="7">7. Shannon Entropy Math</option>
+                    <option value="8">8. Redaction Styles</option>
+                    <option value="9">9. Console CLI Output</option>
+                    <option value="10">10. Before / After Examples</option>
+                    <option value="11">11. Test Results Summary</option>
+                    <option value="12">12. Results by Rule Breakdown</option>
+                    <option value="13">13. Performance & Scale</option>
+                    <option value="14">14. Limits & Roadmap</option>
+                    <option value="15">15. How to Run</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="slideViewport" class="bg-surface border border-theme rounded-2xl p-8 sm:p-12 shadow-2xl min-h-[520px] flex flex-col justify-between relative overflow-hidden transition-all duration-300">
+            <!-- Slide Content rendered dynamically -->
+            <div id="slideContent" class="space-y-6"></div>
+
+            <!-- Speaker Notes Box -->
+            <div class="mt-8 pt-4 border-t border-theme/60 bg-theme-bg/40 rounded-xl p-4 text-xs">
+                <div class="font-bold text-blue-400 uppercase tracking-wider text-[10px] mb-1 flex items-center gap-1.5"><i class="fa-solid fa-comment-dots"></i> Speaker Notes</div>
+                <div id="slideNotes" class="text-theme-muted leading-relaxed"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="customThemeModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-surface border border-theme rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="font-bold text-sm uppercase tracking-wider text-theme-text flex items-center gap-2">
+                <i class="fa-solid fa-palette text-blue-400"></i> Customize Theme Palette
+            </h3>
+            <div class="space-y-3 text-xs">
+                <div><label class="block text-theme-muted mb-1 font-medium">Background Main</label><input type="color" id="themeBgMain" class="w-full h-9 bg-transparent cursor-pointer rounded-lg border border-theme"></div>
+                <div><label class="block text-theme-muted mb-1 font-medium">Surface</label><input type="color" id="themeBgSurface" class="w-full h-9 bg-transparent cursor-pointer rounded-lg border border-theme"></div>
+                <div><label class="block text-theme-muted mb-1 font-medium">Border</label><input type="color" id="themeBorder" class="w-full h-9 bg-transparent cursor-pointer rounded-lg border border-theme"></div>
+                <div><label class="block text-theme-muted mb-1 font-medium">Text Main</label><input type="color" id="themeText" class="w-full h-9 bg-transparent cursor-pointer rounded-lg border border-theme"></div>
+                <div><label class="block text-theme-muted mb-1 font-medium">Primary Accent</label><input type="color" id="themePrimary" class="w-full h-9 bg-transparent cursor-pointer rounded-lg border border-theme"></div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-theme">
+                <button onclick="closeCustomThemeModal()" class="px-3.5 py-1.5 bg-theme-bg border border-theme rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="applyCustomColors()" class="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700">Save Theme</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ruleModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-surface border border-theme rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <h3 id="ruleModalTitle" class="font-bold text-sm uppercase tracking-wider text-theme-text">Add Detection Rule</h3>
+            <div class="space-y-3 text-xs">
+                <input type="hidden" id="editRuleIndex" value="-1">
+                <div><label class="block text-theme-muted mb-1 font-medium">Rule Name</label><input type="text" id="ruleInputName" placeholder="e.g., Custom Secret Token" class="w-full bg-theme-bg border border-theme rounded-xl px-3 py-2 text-theme-text focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-theme-muted mb-1 font-medium">Tag Label</label><input type="text" id="ruleInputTag" placeholder="CUSTOM_KEY" class="w-full bg-theme-bg border border-theme rounded-xl px-3 py-2 font-mono text-theme-text focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
+                    <div><label class="block text-theme-muted mb-1 font-medium">Severity</label><select id="ruleInputSeverity" class="w-full bg-theme-bg border border-theme rounded-xl px-3 py-2 text-theme-text focus:outline-none"><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+                </div>
+                <div><label class="block text-theme-muted mb-1 font-medium">Regex Pattern</label><input type="text" id="ruleInputPattern" placeholder="secret_[a-zA-Z0-9]{20}" class="w-full bg-theme-bg border border-theme font-mono rounded-xl px-3 py-2 text-theme-text focus:outline-none focus:ring-1 focus:ring-blue-500"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-theme-muted mb-1 font-medium">Flags</label><input type="text" id="ruleInputFlags" value="gi" class="w-full bg-theme-bg border border-theme font-mono rounded-xl px-3 py-2 text-theme-text focus:outline-none"></div>
+                    <div><label class="block text-theme-muted mb-1 font-medium">Capture Group</label><input type="number" id="ruleInputGroup" value="0" min="0" class="w-full bg-theme-bg border border-theme rounded-xl px-3 py-2 text-theme-text focus:outline-none"></div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-theme">
+                <button onclick="closeRuleModal()" class="px-3.5 py-1.5 bg-theme-bg border border-theme rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveRuleFromModal()" class="px-3.5 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700">Save Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-surface border border-blue-500/40 text-theme-text px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-semibold">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-base" id="toastIcon"></i>
+            <span id="toastMessage">Notification message</span>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_SAMPLE_HISTORY = `: 1727590112:0;ls -la
+: 1727590115:0;kubectl get pods -n prod
+: 1727590120:0;ssh -i ~/.ssh/id_ed25519 ubuntu@13.233.10.5
+export OPENAI_API_KEY=sk-proj-Xq7fK2mN9pL4sR8tV1wY3zA6bC5dE0gH
+git commit -m "update deployment manifest"
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" https://api.example.com/v1/orders
+aws configure set aws_access_key_id AKIAIOSFODNN7EXAMPLE
+aws configure set aws_secret_access_key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+mysql -u root -pS3cr3tP@ss! -h 10.0.4.12 inventory
+git clone https://deploy:ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8@github.com/example/repo.git
+docker login -u deploy --password hunter2-not-real registry.example.com
+psql postgresql://app:Pa55w0rd-demo@db.internal:5432/app
+STRIPE_SECRET_KEY=sk_test_4eC39HqLyjWDarjtT1zdp7dc node scripts/seed.js
+history | grep ssh
+: 1727590150:0;npm run dev
+cd /var/www/html
+echo "xoxb-2048-1024-EXAMPLEslackTOKENvalue" > .slack
+curl "https://maps.googleapis.com/maps/api/geocode/json?address=Chennai&key=AIzaSyD-EXAMPLE_k3y_abcdefghijklmnopqrstu"
+python3 train.py --epochs 3 --api-key 9f8e7d6c5b4a39281706f5e4d3c2b1a0
+export HF_TOKEN=hf_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789
+git config --global user.email dev.team@example.com
+wget "https://files.example.com/export?sig=Zx9Qm2Lp8Rt4Vw6Yb1Nc3Kd5Fh7Gj0Ha"
+curl -u admin:letmein-demo https://jenkins.example.com/api/json
+cat > key.pem <<'EOF'
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACDEXAMPLEKEY+STRINGFORTESTINGONLYNOTAREALPRIVATEKEY
+-----END OPENSSH PRIVATE KEY-----
+EOF`;
+
+        const DEFAULT_RULES = [
+            { name: "Private Key Block", tag: "PRIVATE_KEY", severity: "critical", pattern: "-----BEGIN[A-Z\\s]+PRIVATE KEY-----[\\s\\S]*?-----END[A-Z\\s]+PRIVATE KEY-----", flags: "g", group: 0, enabled: true },
+            { name: "AWS Access Key ID", tag: "AWS_KEY_ID", severity: "critical", pattern: "(?:AKIA|ASIA)[0-9A-Z]{16}", flags: "g", group: 0, enabled: true },
+            { name: "AWS Secret Access Key", tag: "AWS_SECRET", severity: "critical", pattern: "aws_secret_access_key\\s*[:=]\\s*([A-Za-z0-9/+=]{40})", flags: "gi", group: 1, enabled: true },
+            { name: "GitHub Token", tag: "GITHUB_TOKEN", severity: "critical", pattern: "(?:ghp_|gho_|ghu_|ghs_|ghr_|github_pat_)[A-Za-z0-9_]{20,80}", flags: "g", group: 0, enabled: true },
+            { name: "OpenAI / Anthropic Key", tag: "LLM_API_KEY", severity: "critical", pattern: "(?:sk-proj-|sk-ant-|sk-)[A-Za-z0-9_\\-]{20,60}", flags: "g", group: 0, enabled: true },
+            { name: "Stripe Key", tag: "STRIPE_KEY", severity: "critical", pattern: "(?:sk_|rk_)(?:live|test)_[0-9a-zA-Z]{24,34}", flags: "g", group: 0, enabled: true },
+            { name: "Slack Token", tag: "SLACK_TOKEN", severity: "high", pattern: "xox[abprs]-[A-Za-z0-9\\-]{10,60}", flags: "g", group: 0, enabled: true },
+            { name: "Google API Key", tag: "GOOGLE_API_KEY", severity: "high", pattern: "AIzaSy[A-Za-z0-9_\\-]{33}", flags: "g", group: 0, enabled: true },
+            { name: "Hugging Face Token", tag: "HF_TOKEN", severity: "high", pattern: "hf_[A-Za-z0-9]{32,40}", flags: "g", group: 0, enabled: true },
+            { name: "JSON Web Token", tag: "JWT", severity: "high", pattern: "eyJ[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+\\.[A-Za-z0-9_\\-]+", flags: "g", group: 0, enabled: true },
+            { name: "Authorization Header", tag: "AUTH_HEADER", severity: "high", pattern: "Authorization:\\s*(?:Bearer|Basic|Token)\\s+([A-Za-z0-9._~+/-]+=*)", flags: "gi", group: 1, enabled: true },
+            { name: "Password in URL", tag: "URL_PASSWORD", severity: "high", pattern: "[a-zA-Z][a-zA-Z0-9+.-]*://[^:\\s]+:([^@\\s]+)@", flags: "g", group: 1, enabled: true },
+            { name: "Secret CLI Flag", tag: "CLI_SECRET", severity: "high", pattern: "(?:--password|--passwd|--pass|--pwd|--token|--secret|--api-key|--access-key)[=\\s]+([^\\s]+)", flags: "gi", group: 1, enabled: true },
+            { name: "MySQL Inline Password", tag: "DB_PASSWORD", severity: "high", pattern: "mysql\\s+.*?-p([^\\s]+)", flags: "g", group: 1, enabled: true },
+            { name: "Secret Env Assignment", tag: "ENV_SECRET", severity: "high", pattern: "(?:[A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*)\\s*=\\s*([^\\s]+)", flags: "g", group: 1, enabled: true },
+            { name: "Curl Basic Auth", tag: "CURL_CREDS", severity: "medium", pattern: "curl\\s+.*?(?:-u|--user)\\s+[^:\\s]+:([^\\s]+)", flags: "g", group: 1, enabled: true },
+            { name: "Email Address", tag: "EMAIL", severity: "low", pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", flags: "g", group: 0, enabled: true },
+            { name: "Private IPv4 Address", tag: "PRIVATE_IP", severity: "low", pattern: "\\b(?:10|172\\.(?:1[6-9]|2[0-9]|3[01])|192\\.168)\\.[0-9]{1,3}\\.[0-9]{1,3}\\b", flags: "g", group: 0, enabled: false }
+        ];
+
+        /* Application State */
+        let appState = {
+            rules: JSON.parse(JSON.stringify(DEFAULT_RULES)),
+            allowlist: ["10.0.4.12"],
+            options: { style: "placeholder", stripTimestamps: false, dropCritical: false, entropyEnabled: true, entropyThresh: 4.3, entropyMinLen: 20 },
+            viewMode: "sanitized",
+            currentFindings: [],
+            hitsByRuleMap: {},
+            activeTheme: "cobalt",
+            currentSlide: 1
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('rawInput').value = DEFAULT_SAMPLE_HISTORY;
+            processHistory();
+            renderSlide(1);
+
+            // Add keyboard navigation for presentation slide deck
+            document.addEventListener('keydown', (e) => {
+                if (!document.getElementById('viewDeck').classList.contains('hidden')) {
+                    if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+                    else if (e.key === 'ArrowLeft') prevSlide();
+                }
+            });
+        });
+
+        function calculateShannonEntropy(str) {
+            if (!str) return 0;
+            const len = str.length;
+            const freq = {};
+            for (let i = 0; i < len; i++) {
+                const ch = str[i];
+                freq[ch] = (freq[ch] || 0) + 1;
+            }
+            let entropy = 0;
+            for (const ch in freq) {
+                const p = freq[ch] / len;
+                entropy -= p * Math.log2(p);
+            }
+            return entropy;
+        }
+
+        function processHistory() {
+            let rawText = document.getElementById('rawInput').value;
+
+            if (appState.options.stripTimestamps) {
+                rawText = rawText.replace(/^: \d+:\d+;/gm, '');
+            }
+
+            const rawLines = rawText.split(/\r?\n/);
+            const lineOffsets = computeLineOffsets(rawText);
+
+            let matches = [];
+            appState.hitsByRuleMap = {};
+            appState.rules.forEach(r => appState.hitsByRuleMap[r.name] = 0);
+            appState.hitsByRuleMap["High-Entropy String"] = 0;
+
+            // Pass 1: Regex Engine
+            appState.rules.filter(r => r.enabled).forEach(rule => {
+                try {
+                    let cleanPattern = rule.pattern.replace(/\(\?i\)/g, '');
+                    let flags = rule.flags;
+                    if (rule.pattern.includes('(?i)') && !flags.includes('i')) flags += 'i';
+
+                    const regex = new RegExp(cleanPattern, flags.includes('g') ? flags : flags + 'g');
+                    let match;
+                    while ((match = regex.exec(rawText)) !== null) {
+                        const targetGroup = rule.group || 0;
+                        const secretValue = match[targetGroup] !== undefined ? match[targetGroup] : match[0];
+                        if (!secretValue || appState.allowlist.includes(secretValue)) continue;
+
+                        const startIdx = match.index + (targetGroup > 0 ? match[0].indexOf(secretValue) : 0);
+                        const endIdx = startIdx + secretValue.length;
+
+                        matches.push({
+                            ruleName: rule.name,
+                            tag: rule.tag,
+                            severity: rule.severity,
+                            value: secretValue,
+                            start: startIdx,
+                            end: endIdx,
+                            detectedBy: "Rule: " + rule.name,
+                            entropy: calculateShannonEntropy(secretValue)
+                        });
+                    }
+                } catch (err) {
+                    console.error("Regex error in rule:", rule.name, err);
+                }
+            });
+
+            // Pass 2: Shannon Entropy Engine
+            if (appState.options.entropyEnabled) {
+                const tokenRegex = /[A-Za-z0-9_\-\/+=]{10,}/g;
+                let tokenMatch;
+                while ((tokenMatch = tokenRegex.exec(rawText)) !== null) {
+                    const token = tokenMatch[0];
+                    if (token.length >= appState.options.entropyMinLen && !appState.allowlist.includes(token)) {
+                        const hasAlpha = /[a-zA-Z]/.test(token);
+                        const hasDigit = /[0-9]/.test(token);
+                        const slashCount = (token.match(/\//g) || []).length;
+
+                        if (hasAlpha && hasDigit && slashCount <= 1) {
+                            const ent = calculateShannonEntropy(token);
+                            if (ent >= appState.options.entropyThresh) {
+                                matches.push({
+                                    ruleName: "High-Entropy String",
+                                    tag: "HIGH_ENTROPY",
+                                    severity: "medium",
+                                    value: token,
+                                    start: tokenMatch.index,
+                                    end: tokenMatch.index + token.length,
+                                    detectedBy: "Entropy Engine",
+                                    entropy: ent
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Pass 3: Resolve Overlapping Spans
+            const sevRank = { critical: 4, high: 3, medium: 2, low: 1 };
+            matches.sort((a, b) => {
+                if (sevRank[b.severity] !== sevRank[a.severity]) return sevRank[b.severity] - sevRank[a.severity];
+                return b.value.length - a.value.length;
+            });
+
+            const claimedRanges = [];
+            const finalFindings = [];
+
+            matches.forEach(m => {
+                let isOverlap = false;
+                for (let r of claimedRanges) {
+                    if (m.start >= r.start && m.end <= r.end) {
+                        isOverlap = true;
+                        appState.hitsByRuleMap[m.ruleName] = (appState.hitsByRuleMap[m.ruleName] || 0) + 1;
+                        break;
+                    }
+                }
+                if (!isOverlap) {
+                    claimedRanges.push({ start: m.start, end: m.end });
+                    appState.hitsByRuleMap[m.ruleName] = (appState.hitsByRuleMap[m.ruleName] || 0) + 1;
+                    const lineNum = getLineNum(m.start, lineOffsets);
+                    finalFindings.push({ ...m, line: lineNum });
+                }
+            });
+
+            finalFindings.sort((a, b) => a.start - b.start);
+            appState.currentFindings = finalFindings;
+
+            renderOutputText(rawText, finalFindings);
+            updateMetrics(rawLines.length, finalFindings);
+            renderFindingsTable();
+            renderHitsByRuleBars();
+            renderRulesTable();
+        }
+
+        function computeLineOffsets(text) {
+            const offsets = [0];
+            for (let i = 0; i < text.length; i++) { if (text[i] === '\n') offsets.push(i + 1); }
+            return offsets;
+        }
+
+        function getLineNum(offset, offsets) {
+            for (let i = 0; i < offsets.length; i++) {
+                if (i === offsets.length - 1 || offset < offsets[i + 1]) return i + 1;
+            }
+            return 1;
+        }
+
+        function formatRedactedValue(f) {
+            const style = appState.options.style;
+            if (style === "mask") return "********";
+            if (style === "partial") return f.value.substring(0, 4) + "****";
+            if (style === "hash") return `[${f.tag}:${simpleHashHex(f.value).substring(0, 8)}]`;
+            return `[REDACTED:${f.tag}]`;
+        }
+
+        function simpleHashHex(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
+            return Math.abs(hash).toString(16).padStart(8, '0');
+        }
+
+        function renderOutputText(rawText, findings) {
+            let sanitized = "";
+            let annotated = "";
+            let lastIndex = 0;
+
+            if (appState.options.dropCritical) {
+                const critLines = new Set(findings.filter(f => f.severity === 'critical').map(f => f.line));
+                const lines = rawText.split(/\r?\n/);
+                rawText = lines.map((l, idx) => critLines.has(idx + 1) ? "# [removed: line contained a critical secret]" : l).join('\n');
+            }
+
+            findings.forEach(f => {
+                if (f.start < lastIndex) return;
+                const before = rawText.substring(lastIndex, f.start);
+                const replacement = formatRedactedValue(f);
+                const val = rawText.substring(f.start, f.end);
+
+                sanitized += before + replacement;
+                annotated += escapeHtml(before) + `<span class="hl-${f.severity}" title="${f.tag}">${escapeHtml(val)}</span>`;
+                lastIndex = f.end;
+            });
+
+            sanitized += rawText.substring(lastIndex);
+            annotated += escapeHtml(rawText.substring(lastIndex));
+
+            document.getElementById('sanitizedText').innerText = sanitized;
+            document.getElementById('annotatedText').innerHTML = annotated;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function updateMetrics(totalLines, findings) {
+            const secretsFound = findings.length;
+            const linesAffected = new Set(findings.map(f => f.line)).size;
+            const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+            findings.forEach(f => counts[f.severity]++);
+
+            const cleanPct = totalLines > 0 ? Math.max(0, Math.round(((totalLines - linesAffected) / totalLines) * 100)) : 100;
+
+            document.getElementById('metricLinesScanned').innerText = totalLines;
+            document.getElementById('metricSecretsFound').innerText = secretsFound;
+            document.getElementById('metricCritHigh').innerText = counts.critical + counts.high;
+            document.getElementById('metricLinesAffected').innerText = linesAffected;
+            document.getElementById('metricCleanPct').innerText = cleanPct + '%';
+
+            const totalHits = secretsFound || 1;
+            document.getElementById('barCritical').style.width = ((counts.critical / totalHits) * 100) + '%';
+            document.getElementById('barHigh').style.width = ((counts.high / totalHits) * 100) + '%';
+            document.getElementById('barMedium').style.width = ((counts.medium / totalHits) * 100) + '%';
+            document.getElementById('barLow').style.width = ((counts.low / totalHits) * 100) + '%';
+
+            document.getElementById('severityRatioText').innerText = `${counts.critical} Critical, ${counts.high} High, ${counts.medium} Medium, ${counts.low} Low`;
+        }
+
+        function renderFindingsTable() {
+            const tbody = document.getElementById('findingsTableBody');
+            tbody.innerHTML = '';
+            const search = document.getElementById('findingSearch').value.toLowerCase();
+            const filterSev = document.getElementById('findingSevFilter').value;
+
+            const filtered = appState.currentFindings.filter(f => {
+                const matchSearch = f.tag.toLowerCase().includes(search) || f.ruleName.toLowerCase().includes(search);
+                const matchSev = filterSev === 'ALL' || f.severity === filterSev;
+                return matchSearch && matchSev;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-theme-muted italic font-sans">No findings match filter.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(f => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-theme-bg/60 transition";
+                const preview = f.value.length > 7 ? f.value.substring(0, 3) + '...••••••' : f.value;
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-theme-muted">#${f.line}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-${f.severity === 'critical' ? 'red' : f.severity === 'high' ? 'orange' : f.severity === 'medium' ? 'yellow' : 'blue'}-500/20 text-${f.severity === 'critical' ? 'red' : f.severity === 'high' ? 'orange' : f.severity === 'medium' ? 'yellow' : 'blue'}-400">${f.severity}</span></td>
+                    <td class="p-3 font-semibold text-theme-text">${escapeHtml(f.tag)}</td>
+                    <td class="p-3 text-theme-muted text-[11px] font-sans">${escapeHtml(f.detectedBy)}</td>
+                    <td class="p-3 text-theme-muted">${escapeHtml(preview)}</td>
+                    <td class="p-3 text-theme-muted">${f.value.length}</td>
+                    <td class="p-3 font-mono text-xs text-blue-400 font-semibold">${f.entropy.toFixed(2)}</td>
+                    <td class="p-3 text-right"><button onclick="ignoreToken('${escapeHtml(f.value.replace(/'/g, "\\'"))}')" class="px-2.5 py-1 bg-slate-700/40 hover:bg-slate-700/70 border border-theme rounded-md text-[10px] font-sans transition">Ignore</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderHitsByRuleBars() {
+            const container = document.getElementById('hitsByRuleBars');
+            container.innerHTML = '';
+            const sortedHits = Object.entries(appState.hitsByRuleMap).filter(([_, c]) => c > 0).sort((a, b) => b[1] - a[1]);
+            const maxCount = Math.max(...sortedHits.map(h => h[1]), 1);
+
+            sortedHits.forEach(([name, count]) => {
+                const div = document.createElement('div');
+                div.className = "bg-theme-bg/60 border border-theme p-3 rounded-xl space-y-1.5";
+                div.innerHTML = `
+                    <div class="flex justify-between text-xs"><span class="font-semibold truncate">${escapeHtml(name)}</span><span class="font-bold text-blue-400 font-mono">${count}</span></div>
+                    <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden"><div class="bg-blue-500 h-full rounded-full transition-all duration-300" style="width: ${(count/maxCount)*100}%"></div></div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderRulesTable() {
+            const tbody = document.getElementById('rulesTableBody');
+            tbody.innerHTML = '';
+            appState.rules.forEach((rule, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-theme-bg/60 transition";
+                tr.innerHTML = `
+                    <td class="p-3"><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="toggleRule(${idx})" class="rounded border-theme bg-theme-bg text-blue-600 h-4 w-4"></td>
+                    <td class="p-3 font-medium text-theme-text">${escapeHtml(rule.name)}</td>
+                    <td class="p-3 font-mono text-blue-400 font-semibold">${escapeHtml(rule.tag)}</td>
+                    <td class="p-3 uppercase text-[10px] font-extrabold text-theme-muted">${rule.severity}</td>
+                    <td class="p-3 font-mono text-[11px] text-theme-muted max-w-[180px] truncate" title="${escapeHtml(rule.pattern)}">${escapeHtml(rule.pattern)}</td>
+                    <td class="p-3 font-mono text-xs">${rule.group}</td>
+                    <td class="p-3 font-mono font-bold text-blue-400">${appState.hitsByRuleMap[rule.name] || 0}</td>
+                    <td class="p-3 text-right space-x-1">
+                        <button onclick="deleteRule(${idx})" class="text-red-400 hover:bg-red-500/20 px-2 py-1 rounded-md transition"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function switchMainTab(tab) {
+            document.getElementById('viewDashboard').classList.toggle('hidden', tab !== 'dashboard');
+            document.getElementById('viewDeck').classList.toggle('hidden', tab !== 'deck');
+            document.getElementById('tabBtnDashboard').className = tab === 'dashboard' ? "px-3.5 py-1.5 rounded-lg font-semibold transition bg-blue-600 text-white shadow" : "px-3.5 py-1.5 rounded-lg font-semibold transition text-theme-muted hover:text-theme-text";
+            document.getElementById('tabBtnDeck').className = tab === 'deck' ? "px-3.5 py-1.5 rounded-lg font-semibold transition bg-blue-600 text-white shadow" : "px-3.5 py-1.5 rounded-lg font-semibold transition text-theme-muted hover:text-theme-text";
+        }
+
+        function updateOptionsAndRun() {
+            appState.options.style = document.getElementById('redactStyle').value;
+            appState.options.stripTimestamps = document.getElementById('stripTimestamps').checked;
+            appState.options.dropCritical = document.getElementById('dropCritical').checked;
+            appState.options.entropyEnabled = document.getElementById('entropyEnabled').checked;
+            appState.options.entropyThresh = parseFloat(document.getElementById('entropyThresh').value);
+            appState.options.entropyMinLen = parseInt(document.getElementById('entropyMinLen').value);
+            processHistory();
+        }
+
+        function setViewMode(mode) {
+            appState.viewMode = mode;
+            document.getElementById('sanitizedText').classList.toggle('hidden', mode !== 'sanitized');
+            document.getElementById('annotatedText').classList.toggle('hidden', mode !== 'annotated');
+            document.getElementById('btnViewSanitized').className = mode === 'sanitized' ? "px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition" : "px-2.5 py-1 rounded-md font-semibold text-theme-muted hover:text-theme-text transition";
+            document.getElementById('btnViewAnnotated').className = mode === 'annotated' ? "px-2.5 py-1 rounded-md font-semibold bg-blue-600 text-white transition" : "px-2.5 py-1 rounded-md font-semibold text-theme-muted hover:text-theme-text transition";
+        }
+
+        function changeTheme(theme) {
+            appState.activeTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            document.getElementById('customThemeBtn').classList.toggle('hidden', theme !== 'custom');
+        }
+
+        function toggleRule(idx) { appState.rules[idx].enabled = !appState.rules[idx].enabled; processHistory(); }
+        function deleteRule(idx) { appState.rules.splice(idx, 1); processHistory(); showToast("Rule deleted"); }
+        function ignoreToken(val) { if (!appState.allowlist.includes(val)) { appState.allowlist.push(val); processHistory(); showToast("Token added to ignore allowlist"); } }
+        function loadSampleHistory() { document.getElementById('rawInput').value = DEFAULT_SAMPLE_HISTORY; processHistory(); showToast("Sample history loaded"); }
+        function clearInput() { document.getElementById('rawInput').value = ''; processHistory(); showToast("Input cleared"); }
+        function confirmResetRules() { appState.rules = JSON.parse(JSON.stringify(DEFAULT_RULES)); processHistory(); showToast("Rules reset to default"); }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 2500);
+        }
+
+        function copySanitized() {
+            const text = document.getElementById('sanitizedText').innerText;
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            showToast("Sanitized output copied to clipboard!");
+        }
+
+        function downloadSanitized() {
+            const text = document.getElementById('sanitizedText').innerText;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'history.sanitized.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Downloaded sanitized text file!");
+        }
+
+        function downloadReportJSON() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    lines_scanned: parseInt(document.getElementById('metricLinesScanned').innerText),
+                    secrets_found: appState.currentFindings.length,
+                    lines_affected: parseInt(document.getElementById('metricLinesAffected').innerText),
+                    clean_lines_pct: document.getElementById('metricCleanPct').innerText
+                },
+                hits_by_rule: appState.hitsByRuleMap,
+                findings: appState.currentFindings
+            };
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sanitizer.report.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Downloaded JSON forensic report!");
+        }
+
+        const SLIDES = [
+            {
+                title: "CLI History Sanitizer",
+                subtitle: "Automated Leak Detection & Redaction for Shell Environments",
+                content: `
+                    <div class="space-y-6">
+                        <div class="bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl space-y-3">
+                            <div class="text-xs font-bold uppercase tracking-wider text-blue-400">Project Overview</div>
+                            <p class="text-sm leading-relaxed">A lightweight standard-library security tool and interactive R&D dashboard designed to scan shell histories, detect leaked credentials, redact tokens, and issue CI/CD reports.</p>
+                        </div>
+                        <div class="bg-theme-bg p-5 rounded-2xl border border-theme space-y-2 font-mono text-xs shadow-inner">
+                            <div class="text-theme-muted">// Example: Live OpenAI API Key Redaction</div>
+                            <div class="text-red-400">- export OPENAI_API_KEY=sk-proj-Xq7fK2mN9pL4sR8tV1wY3zA6bC5dE0gH</div>
+                            <div class="text-emerald-400">+ export OPENAI_API_KEY=[REDACTED:LLM_API_KEY]</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Welcome to the CLI History Sanitizer review deck. Slide 1 introduces the solution and demonstrates immediate redaction."
+            },
+            {
+                title: "1. The Problem",
+                subtitle: "Accidental Leakage in Shell History Files",
+                content: `
+                    <div class="space-y-4 text-xs">
+                        <p class="text-sm leading-relaxed">Developers frequently type passwords, access tokens, and connection strings into terminal prompts. Shells write these commands directly to plaintext unencrypted histories (<code class="bg-slate-800 px-1.5 py-0.5 rounded font-mono">~/.bash_history</code> / <code class="bg-slate-800 px-1.5 py-0.5 rounded font-mono">~/.zsh_history</code>).</p>
+                        <div class="bg-red-500/10 border border-red-500/30 p-4 rounded-xl space-y-2 font-mono">
+                            <div class="text-red-400 font-bold uppercase text-[10px]">Real-World Exposed Shell Commands</div>
+                            <div>aws configure set aws_access_key_id AKIAIOSFODNN7EXAMPLE</div>
+                            <div>mysql -u root -pS3cr3tP@ss! -h 10.0.4.12 inventory</div>
+                            <div>git clone https://deploy:ghp_a1B2c3D4e5F6g7H8@github.com/repo.git</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 2 highlights how shell histories record credentials in cleartext, creating security compliance liabilities."
+            },
+            {
+                title: "2. Project Purpose",
+                subtitle: "Four Core Pillars of Defense",
+                content: `
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-blue-400 text-sm">1. DETECT</div>
+                            <p class="text-theme-muted">Identify credentials via 18 curated regex rules and Shannon Entropy math.</p>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-emerald-400 text-sm">2. REDACT</div>
+                            <p class="text-theme-muted">Replace secret tokens cleanly while preserving overall command syntax and structure.</p>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-amber-400 text-sm">3. REPORT</div>
+                            <p class="text-theme-muted">Generate machine-readable JSON forensic logs and exit code 1 for CI/CD blocking.</p>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-purple-400 text-sm">4. CONFIGURE</div>
+                            <p class="text-theme-muted">Editable rules.json with custom capture groups, flags, and token allowlists.</p>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 3 breaks down the four pillars: Detect, Redact, Report, and Configure."
+            },
+            {
+                title: "3. Six-Step Pipeline Architecture",
+                subtitle: "End-to-End Processing Flow",
+                content: `
+                    <div class="space-y-2.5 font-mono text-xs">
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</span> <code>load_config()</code> - Reads rules.json & compiles regular expressions</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">2</span> <code>main()</code> - Normalises line endings & strips ZSH timestamps</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">3</span> <code>detect() Pass 1-2</code> - Runs multi-line regex rules & Shannon Entropy pass</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">4</span> <code>detect() Pass 3</code> - Resolves overlaps sorted by severity & length</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">5</span> <code>redact()</code> - Applies style replacements or drops critical lines</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl flex items-center gap-3"><span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">6</span> <code>build_report()</code> - Writes .sanitized.txt & .report.json</div>
+                    </div>
+                `,
+                notes: "Slide 4 details the function execution sequence from config loading to report output."
+            },
+            {
+                title: "4. rules.json & Capture Group Precision",
+                subtitle: "Redacting Only Sensitive Group Values",
+                content: `
+                    <div class="space-y-4 text-xs">
+                        <p>By specifying a capture group (e.g. <code class="bg-slate-800 px-1 py-0.5 rounded font-mono">group: 1</code>), the engine hides only the secret password while leaving command flags intact.</p>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme font-mono space-y-2">
+                            <div class="text-blue-400 font-bold">// Rule definition for AWS Secret Key</div>
+                            <div>{ "name": "AWS Secret Access Key", "group": 1, "pattern": "aws_secret_access_key\\s*[:=]\\s*([A-Za-z0-9/+=]{40})" }</div>
+                            <div class="text-red-400 pt-2">- aws configure set aws_secret_access_key wJalrXUtnFEMI/K7MDENG...</div>
+                            <div class="text-emerald-400">+ aws configure set aws_secret_access_key [REDACTED:AWS_SECRET]</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 5 explains group targeting for minimal syntax destruction."
+            },
+            {
+                title: "5. Three-Pass Detection Strategy",
+                subtitle: "Multi-line Matchers, Math Metrics, and Span Resolution",
+                content: `
+                    <div class="grid grid-cols-3 gap-3 text-xs">
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-blue-400">Pass 1: Regex</div>
+                            <p class="text-theme-muted">Runs all enabled rules over the full text block using <code>finditer</code> to catch multi-line SSH key blocks.</p>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-amber-400">Pass 2: Entropy</div>
+                            <p class="text-theme-muted">Evaluates tokens ≥20 chars with H ≥ 4.3 bits/char to catch unpatterned signed URLs & high-randomness keys.</p>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-emerald-400">Pass 3: Overlaps</div>
+                            <p class="text-theme-muted">Claims exact character spans by severity & length, recording secondary rules as agreeing hits.</p>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 6 breaks down the 3 detection passes: regex, entropy, and overlap resolution."
+            },
+            {
+                title: "6. Shannon Entropy Detection",
+                subtitle: "Mathematical Formula & Character Randomness",
+                content: `
+                    <div class="space-y-4 text-xs">
+                        <div class="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl flex items-center justify-between font-mono">
+                            <div>Formula: H = − Σ p(c) · log₂ p(c)</div>
+                            <div class="text-blue-400 font-bold">Threshold: H ≥ 4.3 bits/char</div>
+                        </div>
+                        <table class="w-full text-left border-collapse border border-theme font-mono">
+                            <tr class="bg-theme-bg border-b border-theme text-theme-muted"><th class="p-2">Token string</th><th class="p-2">Entropy (H)</th><th class="p-2">Status</th></tr>
+                            <tr class="border-b border-theme"><td class="p-2">kubectl get pods</td><td class="p-2">2.81 bits</td><td class="p-2 text-emerald-400">Safe</td></tr>
+                            <tr class="border-b border-theme"><td class="p-2">hunter2-not-real</td><td class="p-2">3.38 bits</td><td class="p-2 text-emerald-400">Safe</td></tr>
+                            <tr class="border-b border-theme"><td class="p-2">Zx9Qm2Lp8Rt4Vw6Yb1Nc3Kd5Fh7Gj0Ha</td><td class="p-2">5.00 bits</td><td class="p-2 text-amber-400">Flagged (HIGH_ENTROPY)</td></tr>
+                        </table>
+                    </div>
+                `,
+                notes: "Slide 7 details Shannon Entropy math and sample string evaluation scores."
+            },
+            {
+                title: "7. Redaction Styles & Advanced Flags",
+                subtitle: "Placeholder, Masking, Partial, Deterministic Hash, & Drop Critical",
+                content: `
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl"><span class="text-blue-400 font-bold">placeholder:</span> docker login --password [REDACTED:CLI_SECRET]</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl"><span class="text-amber-400 font-bold">mask:</span> docker login --password ********</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl"><span class="text-purple-400 font-bold">partial:</span> docker login --password hunt****</div>
+                        <div class="p-3 bg-theme-bg border border-theme rounded-xl"><span class="text-emerald-400 font-bold">hash (SHA-256):</span> docker login --password [CLI_SECRET:52562501]</div>
+                        <div class="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400"><span class="font-bold">--drop-critical:</span> # [removed: line contained a critical secret]</div>
+                    </div>
+                `,
+                notes: "Slide 8 lists all available redaction styles and security drop modes."
+            },
+            {
+                title: "8. Real Terminal Console Output",
+                subtitle: "CLI Summary Report Banner",
+                content: `
+                    <div class="bg-black/80 border border-slate-700 p-4.5 rounded-xl font-mono text-xs text-emerald-400 space-y-1 shadow-inner">
+                        <div>========================================================</div>
+                        <div>           CLI HISTORY SANITIZER REPORT                 </div>
+                        <div>========================================================</div>
+                        <div> Lines Scanned   : 31</div>
+                        <div> Secrets Found   : 17 (Critical: 6, High: 8, Med: 2, Low: 1)</div>
+                        <div> Lines Affected  : 17</div>
+                        <div> Clean Lines     : 45.2%</div>
+                        <div> Output File     : sample_history.txt.sanitized.txt</div>
+                        <div> Report JSON     : sample_history.txt.report.json</div>
+                        <div>========================================================</div>
+                    </div>
+                `,
+                notes: "Slide 9 shows the console report output generated after execution."
+            },
+            {
+                title: "9. Multi-line Key Block Redaction",
+                subtitle: "Handling Multi-Line SSH & PEM Private Keys Cleanly",
+                content: `
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="text-red-400 bg-red-500/10 p-3.5 rounded-xl border border-red-500/30">
+                            <div>cat > key.pem <<'EOF'</div>
+                            <div>-----BEGIN OPENSSH PRIVATE KEY-----</div>
+                            <div>b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ...</div>
+                            <div>-----END OPENSSH PRIVATE KEY-----</div>
+                            <div>EOF</div>
+                        </div>
+                        <div class="text-emerald-400 bg-emerald-500/10 p-3.5 rounded-xl border border-emerald-500/30">
+                            <div>cat > key.pem <<'EOF'</div>
+                            <div>[REDACTED:PRIVATE_KEY]</div>
+                            <div>EOF</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 10 highlights multi-line key block extraction and replacement."
+            },
+            {
+                title: "10. Sample Execution Metrics",
+                subtitle: "Verification on 31-Line Test History",
+                content: `
+                    <div class="grid grid-cols-2 gap-4 text-xs font-mono">
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="text-blue-400 font-bold font-sans text-sm">Primary Metrics</div>
+                            <div>Lines Scanned: 31</div>
+                            <div>Secrets Detected: 17</div>
+                            <div>Critical + High: 14</div>
+                            <div>Secrets Remaining: 0</div>
+                            <div>Clean Lines: 45.2%</div>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="text-emerald-400 font-bold font-sans text-sm">Severity Ratio</div>
+                            <div class="text-red-400">Critical : 6 (AWS, GitHub, OpenAI, Stripe, SSH)</div>
+                            <div class="text-orange-400">High     : 8 (JWT, Slack, Google, HF, DB, CLI)</div>
+                            <div class="text-yellow-400">Medium   : 2 (Curl, Entropy)</div>
+                            <div class="text-blue-400">Low      : 1 (Email)</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 11 confirms sample metrics: 31 lines scanned, 17 findings, 0 unmasked leaks."
+            },
+            {
+                title: "11. Hits-by-Rule Breakdown",
+                subtitle: "Agreement & Rule Matching Counts",
+                content: `
+                    <div class="space-y-2 font-mono text-xs">
+                        <div class="flex justify-between bg-theme-bg p-2.5 rounded-xl border border-theme"><span>High-Entropy String</span><span class="text-blue-400 font-bold">8 hits (7 agreed, 1 unique)</span></div>
+                        <div class="flex justify-between bg-theme-bg p-2.5 rounded-xl border border-theme"><span>Secret Env Assignment</span><span class="text-blue-400 font-bold">3 hits</span></div>
+                        <div class="flex justify-between bg-theme-bg p-2.5 rounded-xl border border-theme"><span>Password in URL</span><span class="text-blue-400 font-bold">2 hits</span></div>
+                        <div class="flex justify-between bg-theme-bg p-2.5 rounded-xl border border-theme"><span>Secret CLI Flag</span><span class="text-blue-400 font-bold">2 hits</span></div>
+                        <div class="flex justify-between bg-theme-bg p-2.5 rounded-xl border border-theme"><span>14 Other Named Rules</span><span class="text-blue-400 font-bold">1 hit each</span></div>
+                    </div>
+                `,
+                notes: "Slide 12 breaks down matching rule distribution across test input."
+            },
+            {
+                title: "12. Scale & Performance Benchmark",
+                subtitle: "Testing Execution Speed at Scale",
+                content: `
+                    <div class="space-y-4 text-xs">
+                        <div class="bg-blue-600/10 border border-blue-500/30 p-4 rounded-xl space-y-2">
+                            <div class="font-bold text-blue-400 text-sm">10,559 Line Stress Test</div>
+                            <p class="text-theme-muted">The 31-line test sample was duplicated 330 times to simulate enterprise shell history size.</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 font-mono">
+                            <div class="bg-theme-bg p-3.5 rounded-xl border border-theme"><div>Total Lines</div><div class="text-xl font-bold">10,559</div></div>
+                            <div class="bg-theme-bg p-3.5 rounded-xl border border-theme"><div>Scan Time</div><div class="text-xl font-bold text-emerald-400">~1.8s</div></div>
+                            <div class="bg-theme-bg p-3.5 rounded-xl border border-theme"><div>Secrets Found</div><div class="text-xl font-bold text-amber-400">5,610</div></div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 13 details scale benchmarks: 10,559 lines scanned in ~1.8 seconds."
+            },
+            {
+                title: "13. Known Limitations & Future Roadmap",
+                subtitle: "Constraints and Next Enhancement Steps",
+                content: `
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-amber-400 text-sm">Known Limitations</div>
+                            <ul class="list-disc list-inside space-y-1 text-theme-muted leading-relaxed">
+                                <li>Rules match known format signatures only.</li>
+                                <li>32-char hex tokens max out at H=4.0 (below 4.3).</li>
+                                <li>Email addresses can flag non-sensitive emails.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-theme-bg p-4 rounded-xl border border-theme space-y-2">
+                            <div class="font-bold text-emerald-400 text-sm">Next Steps</div>
+                            <ul class="list-disc list-inside space-y-1 text-theme-muted leading-relaxed">
+                                <li>Git pre-commit hook integration.</li>
+                                <li>Per-rule unit test suite.</li>
+                                <li>Shared organizational <code>rules.json</code> repo.</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 14 outlines technical constraints and future extension roadmap."
+            },
+            {
+                title: "14. How to Run",
+                subtitle: "CLI Commands & Interactive UI Execution",
+                content: `
+                    <div class="space-y-3 font-mono text-xs">
+                        <div class="p-3.5 bg-theme-bg border border-theme rounded-xl space-y-1">
+                            <div class="text-theme-muted">// Standard CLI Run</div>
+                            <div class="text-blue-400 font-bold">python3 sanitizer.py sample_history.txt</div>
+                        </div>
+                        <div class="p-3.5 bg-theme-bg border border-theme rounded-xl space-y-1">
+                            <div class="text-theme-muted">// CLI with Custom Rules & Options</div>
+                            <div class="text-amber-400 font-bold">python3 sanitizer.py history.txt -r rules.json --style hash --strip-timestamps</div>
+                        </div>
+                        <div class="p-3.5 bg-theme-bg border border-theme rounded-xl space-y-1">
+                            <div class="text-theme-muted">// Launch Browser R&D Dashboard</div>
+                            <div class="text-emerald-400 font-bold">python3 sanitizer.py --ui</div>
+                        </div>
+                    </div>
+                `,
+                notes: "Slide 15 concludes with execution commands for both terminal and browser modes."
+            }
+        ];
+
+        function renderSlide(index) {
+            if (index < 1 || index > SLIDES.length) return;
+            appState.currentSlide = index;
+            const slide = SLIDES[index - 1];
+
+            document.getElementById('currentSlideNum').innerText = index;
+            document.getElementById('slideSelect').value = index;
+
+            document.getElementById('slideContent').innerHTML = `
+                <div class="space-y-2 border-b border-theme/60 pb-4">
+                    <h2 class="text-2xl font-bold tracking-tight text-theme-text">${escapeHtml(slide.title)}</h2>
+                    <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">${escapeHtml(slide.subtitle)}</p>
+                </div>
+                <div>${slide.content}</div>
+            `;
+
+            document.getElementById('slideNotes').innerText = slide.notes;
+        }
+
+        function prevSlide() { renderSlide(appState.currentSlide - 1); }
+        function nextSlide() { renderSlide(appState.currentSlide + 1); }
+        function goToSlide(num) { renderSlide(num); }
+
+        function openCustomThemeModal() { document.getElementById('customThemeModal').classList.remove('hidden'); }
+        function closeCustomThemeModal() { document.getElementById('customThemeModal').classList.add('hidden'); }
+        function applyCustomColors() {
+            document.documentElement.style.setProperty('--bg-main', document.getElementById('themeBgMain').value);
+            document.documentElement.style.setProperty('--bg-surface', document.getElementById('themeBgSurface').value);
+            document.documentElement.style.setProperty('--border-color', document.getElementById('themeBorder').value);
+            document.documentElement.style.setProperty('--text-main', document.getElementById('themeText').value);
+            document.documentElement.style.setProperty('--primary-color', document.getElementById('themePrimary').value);
+            closeCustomThemeModal();
+            showToast("Custom theme applied!");
+        }
+
+        function openAddRuleModal() {
+            document.getElementById('ruleModalTitle').innerText = "Add Detection Rule";
+            document.getElementById('editRuleIndex').value = "-1";
+            document.getElementById('ruleInputName').value = "";
+            document.getElementById('ruleInputTag').value = "";
+            document.getElementById('ruleInputPattern').value = "";
+            document.getElementById('ruleModal').classList.remove('hidden');
+        }
+
+        function closeRuleModal() { document.getElementById('ruleModal').classList.add('hidden'); }
+
+        function saveRuleFromModal() {
+            const name = document.getElementById('ruleInputName').value.trim();
+            const tag = document.getElementById('ruleInputTag').value.trim().toUpperCase();
+            const pattern = document.getElementById('ruleInputPattern').value.trim();
+            const flags = document.getElementById('ruleInputFlags').value.trim();
+            const group = parseInt(document.getElementById('ruleInputGroup').value) || 0;
+            const severity = document.getElementById('ruleInputSeverity').value;
+
+            if (!name || !tag || !pattern) return;
+
+            appState.rules.push({ name, tag, severity, pattern, flags, group, enabled: true });
+            closeRuleModal();
+            processHistory();
+            showToast("New detection rule added!");
+        }
+    </script>
+</body>
+</html>
